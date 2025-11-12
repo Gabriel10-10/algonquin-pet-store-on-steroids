@@ -290,7 +290,8 @@ Explanation: The db.orders.find() command fetches and displays all documents (re
 - Explore the databases and collections used by the application.
 - Query the orders collection to examine the data structure and stored records.
 
-## Lab Tasks: Build, Push, and Deploy Your Own Docker Images
+# Lab Assignment Tasks
+## **Task 1: Build, Push, and Deploy Your Own Docker Images**
 
 You are asked to fork the necessary service repositories, build Docker images for each service, push them to your own Docker Hub account, and update the Kubernetes configuration file to use your images.
 
@@ -319,3 +320,46 @@ You are asked to fork the necessary service repositories, build Docker images fo
 ### **Step 3: Update `aps-all-in-one.yaml`**
 ---
 ### **Step 4: Test the Application**
+
+## **Task 2: Improving and Extending the Deployment**
+Currently, the deployment YAML runs `MongoDB` and `RabbitMQ` inside the Kubernetes cluster, but data is **ephemeral**. If the pods are deleted or the cluster restarts, all messages and database data are lost.
+
+**Your tasks are to:**
+- **Make MongoDB capable of high availability (replication) and persistent storage:**
+   - Research PersistentVolumeClaim (PVC) and what a MongoDB Replica Set is and how it improves availability.
+   - Modify the existing StatefulSet so that:
+      - It has at least 3 replicas (`replicas: 3`).
+      - Each replica has its own `PersistentVolumeClaim (PVC)` using a `volumeClaimTemplates` section.
+      - The service becomes headless (`clusterIP: None`) for stable DNS names (`mongodb-0.mongodb`, etc.).
+- **Enable RabbitMQ to store messages persistently:**
+   - Currently, RabbitMQ data (queues, messages) disappears when the pod restarts.
+   - Update the RabbitMQ StatefulSet to:
+      - Mount a persistent volume at /var/lib/rabbitmq.
+      - Use a volumeClaimTemplates block to create per-pod PVCs
+      - Ensure the config map (plugins, definitions) remains mounted.
+      - **Hint:** RabbitMQ stores its data in /var/lib/rabbitmq. Use PersistentVolumeClaim templates similar to MongoDB’s.
+- **Investigate what Azure managed services could replace self-hosted MongoDB and RabbitMQ.**
+   - For each service:
+      - Give its name and purpose.
+      - Explain why it’s a good fit (e.g., scaling, backups, availability).
+## Submission
+
+### What to Submit
+1. **Demo Video (Max 5 minutes)**  
+   - Record a short demo video for the lab that includes:
+      - Deploying the Algonquin Pet Store application using your updated  `aps-all-in-one.yaml` file (from Task 1).
+      - Prove MongoDB persistence + replica set (from Task 2).
+      - Prove RabbitMQ persistence (from Task 2).
+
+2. **GitHub Repository (Submission Repo)**  
+   - You must create **one GitHub repository** for your lab submission.  
+   - This submission repository must include:  
+     - A `README.md` file with:  
+         - The YouTube demo video link
+         - Written explanation of your solution to Task 2  
+         - Your updated `aps-all-in-one-Task1.yaml` file used for Task 1
+         - Your updated `aps-all-in-one-Task2.yaml` file used for Task 2
+
+### How to Submit
+- Push your work to a **public GitHub repository** (the submission repository).  
+- Submit the link to your submission repository as your final lab deliverable in **Brightspace**.  
