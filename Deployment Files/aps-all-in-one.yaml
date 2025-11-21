@@ -136,7 +136,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: order-service
-          image: ramymohamed/order-service-l8:latest # Custom image for order service
+          image: gabriel1010/order-service-l8:latest # Custom image for order service
           ports:
             - containerPort: 3000 # Order service listens on this port
           env: # Environment variables for configuration
@@ -230,7 +230,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: makeline-service
-          image: ramymohamed/makeline-service-l8:latest # Custom Makeline service image
+          image: gabriel1010/makeline-service-l8:latest # Custom Makeline service image
           ports:
             - containerPort: 3001 # Makeline service listens on this port
           env: # Environment variables for configuration
@@ -309,7 +309,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: product-service
-          image: ramymohamed/product-service-l8:latest # Custom product service image
+          image: gabriel1010/product-service-l8:latest # Custom product service image
           ports:
             - containerPort: 3002 # Product service listens on this port
           env: # Environment variables for configuration
@@ -370,7 +370,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: store-front
-          image: ramymohamed/store-front-l8:latest # Front-end store application
+          image: gabriel1010/store-front-l8:latest # Front-end store application
           ports:
             - containerPort: 8080 # Front-end app port
               name: store-front
@@ -440,7 +440,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: store-admin
-          image: ramymohamed/store-admin-l8:latest # Admin interface for store
+          image: gabriel1010/store-admin-l8:latest # Admin interface for store
           ports:
             - containerPort: 8081 # Admin app port
               name: store-admin
@@ -491,6 +491,108 @@ spec:
     app: store-admin
   type: LoadBalancer # Expose service externally via load balancer
 ---
+# Deployment for GPT Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpt-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpt-service
+  template:
+    metadata:
+      labels:
+        app: gpt-service
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+        - name: gpt-service
+          image: gabriel1010/gpt-service-l8:test   # <-- change to your public Docker Hub image
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-gpt-api-secret      # same secret you used before
+                  key: OPENAI_GPT_API_KEY
+          resources:
+            requests:
+              cpu: 20m
+              memory: 50Mi
+            limits:
+              cpu: 50m
+              memory: 128Mi
+---
+# Service for GPT Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpt-service
+spec:
+  type: ClusterIP
+  selector:
+    app: gpt-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+---
+# Deployment for Dall-E Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dalle-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dalle-service
+  template:
+    metadata:
+      labels:
+        app: dalle-service
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+        - name: dalle-service
+          image: gabriel1010/dall-e-service-l8:test  # <-- change to your public Docker Hub image
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-dalle-api-secret     # same secret name as before
+                  key: OPENAI_DALLE_API_KEY
+          resources:
+            requests:
+              cpu: 20m
+              memory: 50Mi
+            limits:
+              cpu: 50m
+              memory: 128Mi
+---
+# Service for Dall-E Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: dalle-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dalle-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+---
 # Deployment for AI Service
 apiVersion: apps/v1
 kind: Deployment
@@ -510,32 +612,45 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: ai-service
-          image: ramymohamed/ai-service-l8:latest
+          image: gabriel1010/ai-service-l8:latest
           ports:
             - containerPort: 5001
           env:
-            - name: USE_AZURE_OPENAI # set to True for Azure OpenAI, False for Public OpenAI
-              value: "True"
+            # We are NOT using Azure OpenAI now, we use our own services in the cluster
+            - name: USE_AZURE_OPENAI
+              value: "False"
+
+            # New: internal URLs of your GPT and DALL-E microservices
+            - name: GPT_SERVICE_URL
+              value: "http://gpt-service/generate"
+            - name: DALLE_SERVICE_URL
+              value: "http://dalle-service/generate-image"
+
+            # Old Azure/OpenAI settings can stay (ignored when USE_AZURE_OPENAI = False)
             - name: AZURE_OPENAI_API_VERSION
               value: "2024-07-01-preview"
-            - name: AZURE_OPENAI_GPT_DEPLOYMENT_NAME # required if using Azure OpenAI
+            - name: AZURE_OPENAI_GPT_DEPLOYMENT_NAME
               value: ""
-            - name: AZURE_OPENAI_GPT_ENDPOINT # required if using Azure OpenAI
+            - name: AZURE_OPENAI_GPT_ENDPOINT
               value: ""
             - name: AZURE_OPENAI_DALLE_ENDPOINT
               value: ""
             - name: AZURE_OPENAI_DALLE_DEPLOYMENT_NAME
               value: ""
-            - name: OPENAI_GPT_API_KEY # always required
+
+            # You can remove these if only gpt-service/dalle-service use the keys.
+            # Keeping them here is harmless but not required for this design.
+            - name: OPENAI_GPT_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: openai-gpt-api-secret
                   key: OPENAI_GPT_API_KEY
-            - name: OPENAI_DALLE_API_KEY # always required
+            - name: OPENAI_DALLE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: openai-dalle-api-secret
                   key: OPENAI_DALLE_API_KEY
+
           resources:
             requests:
               cpu: 20m
